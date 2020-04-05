@@ -73,7 +73,6 @@ func writeAndEncrypt(th *kusttest_test.HarnessEnhanced, path, content string) {
 		th.GetT().Fatal(err)
 		return
 	}
-	fmt.Println(string(encryptedContent))
 	th.WriteF(path, string(encryptedContent))
 }
 
