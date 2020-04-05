@@ -1,0 +1,108 @@
+#!/bin/bash
+set -e
+
+if [ -n "$(command -v kustomize)" ]; then
+  echo -n "Existing kustomize installation will be replace. Do you agree (y/n)? "
+  read -r yn
+  if [ "$yn" == "${yn#[Yy]}" ]; then
+    echo "Cancelling..."
+    exit 0
+  fi
+  rm "$(command -v kustomize)"
+fi
+
+echo "Building and install latest kustomize V3"
+GO111MODULE=on go install sigs.k8s.io/kustomize/kustomize/v3
+if [ -z "$(command -v kustomize)" ]; then
+  echo "Unable to build and install kustomize. Cancelling..."
+  exit 0
+fi
+echo "Successfully installed kustomize!"
+
+echo -e "\nPlugin configuration:"
+GROUP="sealed"
+echo -n "Group default value: '$GROUP'. Do you want to change it (Y/n)? "
+read -r yn
+if [ "$yn" != "${yn#[Yy]}" ]; then
+  echo -n "New value "
+  read -r GROUP
+  if [ -z "${GROUP:-}" ]; then
+    echo "Invalide group, cancelling..."
+    exit 0
+  fi
+fi
+
+VERSION="v1"
+echo -n "Version default value: '$VERSION'. Do you want to change it (Y/n)? "
+read -r yn
+if [ "$yn" != "${yn#[Yy]}" ]; then
+  echo -n "New value: "
+  read -r VERSION
+  if [ -z "${VERSION:-}" ]; then
+    echo "Invalide version, cancelling..."
+    exit 0
+  fi
+fi
+
+KIND="secret"
+echo -n "Kind default version: '$KIND'. Do you want to change it (Y/n)? "
+read -r yn
+if [ "$yn" != "${yn#[Yy]}" ]; then
+  echo -n "New value: "
+  read -r KIND
+  if [ -z "${KIND:-}" ]; then
+    echo "Invalide kind, cancelling..."
+    exit 0
+  fi
+fi
+
+EXECUTABLE_NAME="$KIND.so"
+go build -buildmode plugin -o $EXECUTABLE_NAME
+echo "Successfully build plugin!"
+
+XDG_CONFIG_HOME="$HOME/.config"
+if [[ -z "$XDG_CONFIG_HOME" ]]; then
+  echo "You must define XDG_CONFIG_HOME to use a kustomize plugin"
+  echo "Default: $XDG_CONFIG_HOME"
+  echo -n "Do you want to change it (Y/n)? "
+  read -r yn
+  if [ "$yn" != "${yn#[Yy]}" ]; then
+    echo -n "New value ? "
+    read -r XDG_CONFIG_HOME
+    echo "$XDG_CONFIG_HOME"
+  fi
+
+  echo "Export XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
+  export XDG_CONFIG_HOME=$XDG_CONFIG_HOME
+
+  echo -n "Do you want to add to zshrc (Y/n)? "
+  read -r yn
+  if [ "$yn" != "${yn#[Yy]}" ]; then
+    echo "export XDG_CONFIG_HOME=$XDG_CONFIG_HOME" >> $HOME/.zshrc
+  fi
+
+  echo -n "Do you want to add to bashrc (Y/n)? "
+  read -r yn
+  if [ "$yn" != "${yn#[Yy]}" ]; then
+    echo "export XDG_CONFIG_HOME=$XDG_CONFIG_HOME" >> $HOME/.bashrc
+  fi
+fi
+
+echo -e "\nConfiguration kustomize plugin directory"
+PLUGIN_PATH="$XDG_CONFIG_HOME/kustomize/plugin/$GROUP/$VERSION/$KIND/"
+echo "Creating plugin directory '$PLUGIN_PATH'"
+mkdir -p $PLUGIN_PATH
+
+echo "Copying plugin executable to the kustomize plugin path"
+cp $EXECUTABLE_NAME $PLUGIN_PATH
+echo "Installation successfull"
+
+echo -e "\nExample:
+apiVersion: $GROUP/$VERSION
+kind: $KIND
+metadata:
+  name: mySecret
+  namespace: whatever
+type: Sealed
+envs:
+- secret.env"
