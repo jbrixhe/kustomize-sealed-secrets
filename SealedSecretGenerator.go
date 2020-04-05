@@ -37,12 +37,18 @@ func (p *plugin) Config(h *resmap.PluginHelpers, config []byte) (err error) {
 
 func (p *plugin) Generate() (resmap.ResMap, error) {
 	switch strings.ToLower(p.SecretArgs.Type) {
-	case "sops/opaque", "sops/kubernetes.io/tls":
+	case "sealed":
 		return p.h.ResmapFactory().FromSecretArgs(
 			kv.NewLoader(NewSopsLoader(p.h.Loader()), p.h.Validator()),
 			&p.GeneratorOptions, types.SecretArgs{
 				GeneratorArgs: p.SecretArgs.GeneratorArgs,
-				Type: strings.TrimPrefix(p.SecretArgs.Type, "sops/"),
+			})
+	case "sealed/tls":
+		return p.h.ResmapFactory().FromSecretArgs(
+			kv.NewLoader(NewSopsLoader(p.h.Loader()), p.h.Validator()),
+			&p.GeneratorOptions, types.SecretArgs{
+				GeneratorArgs: p.SecretArgs.GeneratorArgs,
+				Type:          "kubernetes.io/tls",
 			})
 	default:
 		return p.h.ResmapFactory().FromSecretArgs(
@@ -56,7 +62,7 @@ type SopsLoader struct {
 }
 
 func NewSopsLoader(proxy ifc.Loader) *SopsLoader {
-	return &SopsLoader{proxy:proxy}
+	return &SopsLoader{proxy: proxy}
 }
 
 func (sl *SopsLoader) Root() string {
@@ -64,7 +70,7 @@ func (sl *SopsLoader) Root() string {
 }
 
 // New returns Loader located at newRoot.
-func (sl *SopsLoader) New(newRoot string) ( ifc.Loader, error) {
+func (sl *SopsLoader) New(newRoot string) (ifc.Loader, error) {
 	p, err := sl.proxy.New(newRoot)
 	if err != nil {
 		return &SopsLoader{}, err
@@ -83,6 +89,6 @@ func (sl *SopsLoader) Load(location string) ([]byte, error) {
 }
 
 // Cleanup cleans the loader
-func (sl *SopsLoader)  Cleanup() error {
+func (sl *SopsLoader) Cleanup() error {
 	return sl.proxy.Cleanup()
 }

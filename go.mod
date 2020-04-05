@@ -1,4 +1,4 @@
-module github.com/jbrixhe/kustomize-sops
+module github.com/jbrixhe/kustomize-sealed-secrets
 
 go 1.13
 

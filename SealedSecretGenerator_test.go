@@ -16,9 +16,9 @@ import (
 	kusttest_test "sigs.k8s.io/kustomize/api/testutils/kusttest"
 )
 
-func TestSecretGenerator(t *testing.T) {
+func TestSealedSecretGenerator(t *testing.T) {
 	th := kusttest_test.MakeEnhancedHarness(t).BuildGoPlugin(
-		"jbrixhe", "v1", "SecretGenerator")
+		"sealed.secrets", "v1", "SealedSecretGenerator")
 	defer th.Reset()
 
 	writeAndEncrypt(th, "a.env", `
@@ -28,18 +28,18 @@ ROUTER_PASSWORD=admin
 DB_PASSWORD=iloveyou
 `)
 
-	writeAndEncrypt(th,"longsecret", `
+	writeAndEncrypt(th, "longsecret", `
 Lorem ipsum dolor sit amet,
 consectetur adipiscing elit.
 `)
 
 	rm := th.LoadAndRunGenerator(`
-apiVersion: jbrixhe/v1
-kind: SecretGenerator
+apiVersion: sealed.secrets/v1
+kind: SealedSecretGenerator
 metadata:
   name: mySecret
   namespace: whatever
-type: sops/Opaque
+type: Sealed
 behavior: merge
 envs:
 - a.env
@@ -98,9 +98,9 @@ func encrypt(path, content string) ([]byte, error) {
 	tree := sops.Tree{
 		Branches: branches,
 		Metadata: sops.Metadata{
-			KeyGroups:         conf.KeyGroups,
-			Version:           version.Version,
-			ShamirThreshold:   conf.ShamirThreshold,
+			KeyGroups:       conf.KeyGroups,
+			Version:         version.Version,
+			ShamirThreshold: conf.ShamirThreshold,
 		},
 		FilePath: path,
 	}
